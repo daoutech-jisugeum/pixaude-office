@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ruff check:*)",
+      "Bash(node -e:*)",
+      "Bash(./bin/office web)",
+      "Bash(./bin/office status)",
+      "Bash(./bin/office doctor)",
+      "Bash(cd web && ../.venv/bin/python manage.py test:*)",
+      "Bash(tmux list-windows:*)",
+      "Bash(tmux capture-pane:*)",
+      "Bash(curl -s http://127.0.0.1:4800/*)",
+      "Bash(python3 .claude/skills/verify-ui/cdp.py:*)"
+    ],
+    "deny": [
+      "Read(./.office-token)",
+      "Read(./.generated/**)"
+    ]
+  }
+}

@@ -1,0 +1,26 @@
+# 설치별 생성물 (토큰·훅 설정·원래 상태줄 명령)
+.office-token
+.generated/
+.venv/
+# 내 조직도 (예제는 company.example.yaml)
+company.yaml
+# 런타임 상태
+office.sqlite3
+.web.pid
+.web.log
+.launch.log
+.sessions.json
+.ratelimits.json
+uploads/
+# 도구 캐시·검증 스크린샷
+.ruff_cache/
+__pycache__/
+.shot*.png
+# 개인 기획자 작업실 (레포에 포함하지 않음)
+planner/
+# 파이썬·도구
+__pycache__/
+*.pyc
+.ruff_cache/
+.shot*.png
+.DS_Store

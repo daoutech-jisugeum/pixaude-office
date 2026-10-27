@@ -1,0 +1,10 @@
+[project]
+name = "pixaude-office"
+version = "0.1.0"
+description = "Claude Code 세션들을 픽셀 오피스에서 운영하는 로컬 도구 (tmux + Django Channels + Phaser)"
+requires-python = ">=3.12"
+
+[tool.ruff]
+line-length = 200
+target-version = "py312"
+extend-exclude = ["web/office/migrations"]

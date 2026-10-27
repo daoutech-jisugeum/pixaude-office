@@ -1,0 +1,11 @@
+(합성 fixture: 실제 로그인 화면을 캡처하지 못해 알려진 문구로 만든 것)
+
+  Claude Code
+
+  Not authenticated. Please log in.
+
+  Browser didn't open? Use the url below to sign in:
+
+  https://claude.ai/oauth/authorize?code=true&client_id=abc&redirect_uri=https%3A%2F%2Fconsole.anthropic.com
+
+  Paste code here if prompted >

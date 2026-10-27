@@ -1,0 +1,45 @@
+# Pixaude Office 조직도 — 이 파일을 company.yaml 로 복사해 쓰세요 (office setup 이 자동으로 복사합니다)
+# 팀 = 프로젝트(레포 하나). 직원 = 그 팀에서 떠 있는 Claude 세션 (id_1, id_2 … = tmux 창 이름 = claude --name).
+#   cwd         작업실 (레포 경로, ~ 사용 가능)
+#   room        앉을 방 (같은 이름끼리 한 방)
+#   pyenv       파이썬 팀만: ~/.pyenv/versions 의 환경 이름 (선택. Java·Vue 팀은 비움)
+#   args        claude 에 그대로 붙일 추가 인자 (예: --dangerously-skip-permissions)
+#   model       opus | sonnet | haiku … 비우면 전역 설정
+#   permission  default | acceptEdits | plan | bypassPermissions | auto
+#   add_dirs    auto → 활성 팀 작업실 전부를 --add-dir 로 (기획자·QA 같은 역할형 팀), 또는 경로 목록
+#   active      「전체 출근」·office up 에 포함할지
+#   alias       zshrc alias 이름 (메모용)
+#   worktree    같은 팀 직원을 여럿 띄울 때 git worktree 격리: extra(기본, 두 번째 직원부터) | always | off. claude --worktree <직원id> 로 실행
+#   sandbox     true 면 세션 설정에 sandbox.enabled 를 넣어 Bash 를 샌드박스에서 실행 (skip-permissions 와 함께 권장)
+# 화면의 출근 관리 「＋ 팀」으로도 추가/수정할 수 있습니다 (이 파일을 다시 씀. 맨 위 주석 블록은 유지).
+
+server:
+  host: 127.0.0.1
+  port: 4800
+  # tmux_session: office           # 이미 'office' 세션을 쓰고 있다면 바꾸세요
+  # weather: { lat: 37.4386, lon: 127.1378 }   # 날씨 위치 (기본 성남시). Open-Meteo 무료 API 로 10분마다 → 헤더 이모지·온도, 대표실 창문 연출
+  # weather_cmd: ~/bin/weather.sh  # 대신 직접 명령을 쓰려면: 표준출력이 {"label": "☀ 13°C"} 이거나 한 줄 텍스트 (선택)
+  # editor: code                   # 「IDE 에서 열기」 명령 (code · cursor · idea). 비우면 PATH 에서 찾음
+  # notify_macos: false            # true 면 질문·오류를 macOS 알림으로도 (osascript). 브라우저 알림(상단 「알림」 토글)과 별개
+
+employees:
+  - id: my-api
+    name: 서비스 백엔드
+    cwd: ~/code/my-api
+    room: 개발실
+    args: --dangerously-skip-permissions
+    active: true
+
+  - id: my-web
+    name: 서비스 프론트
+    cwd: ~/code/my-web
+    room: 개발실
+    active: true
+
+  # 역할형 팀(기획자·QA 등)을 두려면: 빈 폴더에 CLAUDE.md 로 역할을 적고 add_dirs: auto, permission: plan
+  # - id: planner
+  #   name: 기획자
+  #   cwd: ~/work/planner
+  #   room: 기획실
+  #   permission: plan
+  #   add_dirs: auto

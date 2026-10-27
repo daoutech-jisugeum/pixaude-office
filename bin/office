@@ -1,0 +1,323 @@
+#!/bin/zsh
+# Pixaude Office 런처: 팀(레포)별 Claude Code 세션을 tmux(detached)로 한 번에 띄우고 오피스 웹을 연다.
+#   office setup             처음 한 번: 요구사항 확인, .venv 생성, company.yaml 준비, 토큰·훅 설정 생성
+#   office up                웹 서버를 백그라운드로 띄우고 전원 출근 + 브라우저. 터미널을 닫아도 유지. (tid 를 주면 그 팀 직원 추가 더
+#   office down              전원 퇴근 (/exit) + 웹 서버 종료
+#   office status            직원별 마지막 화면 한 줄
+#   office attach <iid>      그 직원 터미널로 들어가기 (예: my-api_1, Ctrl+b d 로 나옴)
+#   office restart <iid>     그 직원만 재기동 (자기 세션을 --resume)
+#   office web               웹 서버만 (재)기동
+#   office open              브라우저 열기
+#   office doctor            설치 상태 점검
+#   office statusline install|uninstall   전역 상태줄에 오피스 래퍼 끼우기/되돌리기 (구독 사용률·컨텍스트 표시용, 선택)
+#   office service install|uninstall      (macOS) launchd 로 웹 서버 상시 실행 (선택)
+#   office app               (macOS) ~/Applications 에 더블클릭용 'Pixaude Office.app' 만들기 (선택)
+#   office uninstall         상태줄·launchd 되돌리고 세션 종료, 생성물 삭제
+# 출근·재기동은 웹 서버의 API 를 부른다 (명령 조립·세션 이어가기·trust 수락은 web/office/state.py 한 곳).
+set -u
+OFFICE_HOME="${OFFICE_HOME:-${0:A:h:h}}"
+PY="${OFFICE_PY:-$OFFICE_HOME/.venv/bin/python}"
+PIDFILE="$OFFICE_HOME/.web.pid"
+LOGFILE="$OFFICE_HOME/.web.log"
+HOOKS="$OFFICE_HOME/.generated/office-hooks.json"
+LABEL="com.pixaude-office.web"
+PLIST="$HOME/Library/LaunchAgents/$LABEL.plist"
+IS_MAC=0; [[ "$(uname -s)" == "Darwin" ]] && IS_MAC=1
+
+need_setup() {
+  [[ -x "$PY" ]] || { print "  ✗ 파이썬 환경이 없습니다. 먼저:  $OFFICE_HOME/bin/office setup"; return 1; }
+  [[ -f "$OFFICE_HOME/company.yaml" ]] || { print "  ✗ company.yaml 이 없습니다. 먼저:  $OFFICE_HOME/bin/office setup  (company.example.yaml 을 복사해 줍니다)"; return 1; }
+  return 0
+}
+cfg() {  # server.<key> 읽기 (기본값 $2)
+  "$PY" - "$1" "$2" <<'PYEOF'
+import os, sys, yaml
+c = yaml.safe_load(open(os.path.expanduser(os.environ["OFFICE_HOME"]) + "/company.yaml")) or {}
+v = (c.get("server") or {}).get(sys.argv[1])
+print(v if v not in (None, "") else sys.argv[2])
+PYEOF
+}
+load_cfg() {
+  need_setup || exit 1
+  export OFFICE_HOME
+  PORT="$(cfg port 4800)"; SESSION="$(cfg tmux_session office)"
+  TOKEN="$(cat "$OFFICE_HOME/.office-token" 2>/dev/null)"
+  render_hooks
+}
+render_hooks() {  # 포트·경로·토큰을 채운 훅 설정을 .generated/ 에 (바뀌었을 때만 다시 씀)
+  OFFICE_PORT="$PORT" "$PY" - <<'PYEOF'
+import os, sys
+from pathlib import Path
+home = Path(os.environ["OFFICE_HOME"]); sys.path.insert(0, str(home / "web"))
+from office.services.hooks import ensure
+ensure(home, int(os.environ["OFFICE_PORT"]))
+PYEOF
+}
+check_claude_version() {  # 화면 패턴을 검증한 범위(web/config/settings.py CLAUDE_TESTED) 밖이면 경고만. 범위는 서버 설정 한 곳에서 읽는다
+  local v; v="$(claude --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)"
+  [[ -n "$v" && -x "$PY" ]] || return 0
+  OFFICE_HOME="$OFFICE_HOME" "$PY" - "$v" <<'PYEOF'
+import os, re, sys
+from pathlib import Path
+src = (Path(os.environ["OFFICE_HOME"]) / "web" / "config" / "settings.py").read_text()
+m = re.search(r'CLAUDE_TESTED = \("([\d.]+)", "([\d.]+)"\)', src)
+v = tuple(int(x) for x in sys.argv[1].split("."))
+lo, hi = (tuple(int(x) for x in m.group(i).split(".")) for i in (1, 2))
+if v < lo or v > hi:
+    print(f"  ⚠ claude {sys.argv[1]} 는 화면 패턴을 확인한 범위({m.group(1)}~{m.group(2)}) 밖입니다. 상태가 「작업 중」에 멈추거나 모드가 안 읽히면 README 문제 해결 참고")
+PYEOF
+}
+check_agent_view_default() {  # /config defaultToAgentsView 가 켜져 있어도 오피스 세션은 env(CLAUDE_CODE_DISABLE_AGENT_VIEW=1)로 대화 세션을 띄운다는 안내
+  local py="$PY"; [[ -x "$py" ]] || py="$(find_python 2>/dev/null || print python3)"   # setup 전(.venv 없음)에도 doctor 가 돌게
+  "$py" -c 'import json,os
+try: v = json.load(open(os.path.expanduser("~/.claude/settings.json"))).get("defaultToAgentsView")
+except Exception: v = None
+print("  · defaultToAgentsView 가 켜져 있습니다. 오피스 직원 창은 영향 없음 (세션 env 로 agent view 를 끔)") if v else None' 2>/dev/null
+  return 0
+}
+launchd_managed() { (( IS_MAC )) && launchctl print "gui/$UID/$LABEL" >/dev/null 2>&1; }
+port_busy() { lsof -nP -iTCP:"$PORT" -sTCP:LISTEN -t >/dev/null 2>&1; }
+open_url() { if (( IS_MAC )); then open "$1" 2>/dev/null; else xdg-open "$1" >/dev/null 2>&1; fi || true; }
+api_post() {  # path json → 서버 응답(JSON). 웹이 떠 있어야 한다
+  curl -s -m 90 -X POST "http://127.0.0.1:$PORT$1" -H "X-Office-Token: $TOKEN" -H 'content-type: application/json' --data "${2:-{\}}"
+}
+
+web_running() { { [[ -f "$PIDFILE" ]] && kill -0 "$(cat "$PIDFILE")" 2>/dev/null; } || port_busy; }
+web_up() {
+  if web_running; then print "  · 웹 서버 이미 실행 중 ($(launchd_managed && print launchd || print "pid $(cat "$PIDFILE" 2>/dev/null)"))"; return; fi
+  # 터미널을 닫아도 살아 있게: nohup + disown(&!). 끌 때는 office down (pid 파일)
+  ( cd "$OFFICE_HOME/web" && OFFICE_HOME="$OFFICE_HOME" "$PY" manage.py migrate -v 0 >>"$LOGFILE" 2>&1 \
+    && exec nohup env PYTHONUNBUFFERED=1 OFFICE_HOME="$OFFICE_HOME" "$PY" -m daphne -b 127.0.0.1 -p "$PORT" config.asgi:application >>"$LOGFILE" 2>&1 ) </dev/null &!
+  echo $! >"$PIDFILE"
+  # 프로세스가 떠 있는 것만으로는 부족하다: 첫 실행은 migrate 가 먼저 돌아 몇 초 뒤에야 포트가 열린다 → HTTP 응답까지 기다린다
+  local i; for i in {1..120}; do curl -s -m 1 -o /dev/null "http://127.0.0.1:$PORT/" && break; kill -0 "$(cat "$PIDFILE")" 2>/dev/null || break; sleep 0.25; done
+  curl -s -m 2 -o /dev/null "http://127.0.0.1:$PORT/" && print "  ✓ 웹 서버: http://127.0.0.1:$PORT  (log: $LOGFILE)" || { print "  ✗ 웹 서버 기동 실패. $LOGFILE 확인"; return 1; }
+}
+web_down() {
+  if launchd_managed; then print "  · 웹 서버는 launchd 가 관리 중 (끄려면 office service uninstall)"; return; fi
+  local pids; pids="$(pgrep -f "daphne -b 127.0.0.1 -p $PORT" 2>/dev/null)"
+  rm -f "$PIDFILE"
+  [[ -z "$pids" ]] && return
+  kill $pids 2>/dev/null; sleep 1.5
+  pids="$(pgrep -f "daphne -b 127.0.0.1 -p $PORT" 2>/dev/null)"; [[ -n "$pids" ]] && kill -9 $pids 2>/dev/null
+  print "  ✓ 웹 서버 종료"
+}
+cmd_serve() { cd "$OFFICE_HOME/web" && OFFICE_HOME="$OFFICE_HOME" "$PY" manage.py migrate -v 0 && exec env PYTHONUNBUFFERED=1 OFFICE_HOME="$OFFICE_HOME" "$PY" -m daphne -b 127.0.0.1 -p "$PORT" config.asgi:application; }
+
+# ---------------- setup / doctor ----------------
+find_python() {  # 3.12 이상인 python 하나
+  local c; for c in python3.14 python3.13 python3.12 python3; do
+    command -v "$c" >/dev/null 2>&1 && "$c" -c 'import sys; sys.exit(0 if sys.version_info >= (3,12) else 1)' 2>/dev/null && { print -r -- "$c"; return; }
+  done
+  return 1
+}
+cmd_doctor() {
+  local ok=1
+  print "Pixaude Office 점검  ($OFFICE_HOME)"
+  local pyv; pyv="$(find_python)" && print "  ✓ python: $pyv ($($pyv -V 2>&1))" || { print "  ✗ python 3.12 이상이 필요합니다 (brew install python@3.12)"; ok=0; }
+  if command -v tmux >/dev/null; then
+    local tv; tv="$(tmux -V | sed -E 's/[^0-9.]//g')"
+    "${pyv:-python3}" -c "import sys; sys.exit(0 if tuple(int(x) for x in '$tv'.split('.')[:2]) >= (3,2) else 1)" 2>/dev/null && print "  ✓ tmux $tv" || { print "  ✗ tmux 3.2 이상이 필요합니다 (현재 $tv)"; ok=0; }
+  else print "  ✗ tmux 가 없습니다 (brew install tmux)"; ok=0; fi
+  if command -v claude >/dev/null; then
+    print "  ✓ claude: $(claude --version 2>/dev/null | head -1)"; check_claude_version; check_agent_view_default
+  else print "  ✗ claude CLI 가 없습니다 (https://claude.com/claude-code)"; ok=0; fi
+  command -v git >/dev/null && print "  ✓ git" || { print "  ✗ git 이 없습니다"; ok=0; }
+  command -v curl >/dev/null && print "  ✓ curl" || { print "  ✗ curl 이 없습니다"; ok=0; }
+  command -v lsof >/dev/null && print "  ✓ lsof" || print "  · lsof 없음 (포트 표시만 안 됨)"
+  command -v gh >/dev/null && print "  ✓ gh (PR 표시)" || print "  · gh 없음 (PR 표시만 안 됨)"
+  [[ -x "$PY" ]] && print "  ✓ .venv" || print "  · .venv 없음 → office setup"
+  [[ -f "$OFFICE_HOME/company.yaml" ]] && print "  ✓ company.yaml" || print "  · company.yaml 없음 → office setup"
+  [[ -f "$OFFICE_HOME/.office-token" ]] && print "  ✓ 토큰" || print "  · 토큰 없음 → office setup"
+  [[ -f "$HOOKS" ]] && print "  ✓ 훅 설정 ($HOOKS)" || print "  · 훅 설정은 office up 때 생성됩니다"
+  local sl; sl="$("${pyv:-python3}" -c 'import json,os
+try: print((json.load(open(os.path.expanduser("~/.claude/settings.json"))).get("statusLine") or {}).get("command",""))
+except Exception: print("")' 2>/dev/null)"
+  [[ "$sl" == *office-statusline.sh* ]] && print "  ✓ 전역 상태줄 래퍼 설치됨 (구독 사용률 표시)" || print "  · 전역 상태줄 래퍼 없음 (선택: office statusline install)"
+  (( ok )) || return 1
+}
+cmd_setup() {
+  print "Pixaude Office 설치  ($OFFICE_HOME)"
+  cmd_doctor >/dev/null 2>&1 || { cmd_doctor; print "  위 ✗ 항목을 먼저 해결하세요."; return 1; }
+  if [[ ! -x "$PY" ]]; then
+    local pyv; pyv="$(find_python)"
+    print "  · .venv 생성 ($pyv)"; "$pyv" -m venv "$OFFICE_HOME/.venv" || return 1
+  fi
+  "$PY" -m pip install -q --upgrade pip >/dev/null 2>&1
+  "$PY" -m pip install -q -r "$OFFICE_HOME/requirements.txt" && print "  ✓ 파이썬 패키지 설치" || { print "  ✗ pip 설치 실패"; return 1; }
+  if [[ ! -f "$OFFICE_HOME/company.yaml" ]]; then
+    cp "$OFFICE_HOME/company.example.yaml" "$OFFICE_HOME/company.yaml"; print "  ✓ company.yaml 생성 (예제 복사). 팀은 화면의 「＋ 팀」으로 추가하거나 이 파일을 고치세요"
+  else print "  · company.yaml 유지"; fi
+  export OFFICE_HOME; PORT="$(cfg port 4800)"
+  render_hooks && print "  ✓ 토큰·훅 설정 생성 (.office-token, .generated/)"
+  mkdir -p "$OFFICE_HOME/uploads"
+  if [[ "${1:-}" == "--alias" ]]; then
+    grep -q "bin/office" "$HOME/.zshrc" 2>/dev/null || { print "alias office=\"$OFFICE_HOME/bin/office\"" >>"$HOME/.zshrc"; print "  ✓ ~/.zshrc 에 alias 추가"; }
+  else
+    print "  · 셸 alias 를 쓰려면:  alias office=\"$OFFICE_HOME/bin/office\"   (또는 office setup --alias)"
+  fi
+  print "\n다음:  office up        (전원 출근 + 브라우저)"
+  print "선택:  office statusline install   (헤더에 구독 사용률 표시)"
+  (( IS_MAC )) && print "선택:  office app                  (더블클릭용 앱)"
+}
+
+# ---------------- 전역 상태줄 래퍼 ----------------
+cmd_statusline() {
+  local settings="$HOME/.claude/settings.json" wrapper="$OFFICE_HOME/hooks/office-statusline.sh"
+  case "${1:-}" in
+    install)
+      need_setup || return 1; export OFFICE_HOME; PORT="$(cfg port 4800)"; mkdir -p "$OFFICE_HOME/.generated"
+      "$PY" - "$settings" "$wrapper" "$PORT" "$OFFICE_HOME/.generated/original-statusline.cmd" <<'PYEOF'
+import json, os, shutil, sys, time
+path, wrapper, port, orig_file = sys.argv[1:5]
+d = json.load(open(path)) if os.path.exists(path) else {}
+cur = (d.get("statusLine") or {}).get("command", "")
+if cur and "office-statusline.sh" not in cur:
+    open(orig_file, "w").write(cur + "\n")           # 원래 명령 보존 → 래퍼가 그대로 실행
+if os.path.exists(path):
+    shutil.copy(path, path + ".bak-office-" + time.strftime("%Y%m%d%H%M%S"))
+d["statusLine"] = {"type": "command", "command": f"{wrapper} {port}", "padding": 0}
+json.dump(d, open(path, "w"), indent=2, ensure_ascii=False)
+print(f"  ✓ ~/.claude/settings.json statusLine → 래퍼 (원래 명령: {'보존' if cur and 'office-statusline' not in cur else '없음'})")
+PYEOF
+      ;;
+    uninstall)
+      "$PY" - "$settings" "$OFFICE_HOME/.generated/original-statusline.cmd" <<'PYEOF'
+import json, os, sys
+path, orig_file = sys.argv[1:3]
+d = json.load(open(path)) if os.path.exists(path) else {}
+cur = (d.get("statusLine") or {}).get("command", "")
+if "office-statusline.sh" not in cur:
+    print("  · 래퍼가 설치돼 있지 않습니다"); sys.exit()
+if os.path.dirname(os.path.dirname(cur.split()[0])) != os.path.dirname(os.path.dirname(orig_file)):
+    print("  · 설치된 래퍼가 다른 폴더의 Pixaude Office 것이라 건드리지 않습니다:", cur); sys.exit()   # 다른 clone 이 전역 상태줄을 지우지 않게
+orig = open(orig_file).read().strip() if os.path.exists(orig_file) else ""
+if orig: d["statusLine"] = {"type": "command", "command": orig, "padding": 0}
+else: d.pop("statusLine", None)
+json.dump(d, open(path, "w"), indent=2, ensure_ascii=False)
+print("  ✓ 상태줄을 원래대로 되돌렸습니다" + ("" if orig else " (원래 명령이 없어 제거)"))
+PYEOF
+      ;;
+    *) print "usage: office statusline install|uninstall"; return 1 ;;
+  esac
+}
+
+# ---------------- launchd (macOS) ----------------
+cmd_service() {
+  (( IS_MAC )) || { print "  · launchd 는 macOS 전용입니다. Linux 는 'office serve' 를 systemd --user 로 등록하세요"; return 1; }
+  case "${1:-}" in
+    install)
+      load_cfg
+      case "$OFFICE_HOME" in
+        "$HOME/Documents"*|"$HOME/Desktop"*|"$HOME/Downloads"*)
+          print "  ✗ macOS 는 launchd 프로세스의 $OFFICE_HOME 접근을 막습니다 (문서/데스크톱/다운로드 폴더)."
+          print "    프로젝트를 ~/pixaude-office 처럼 다른 곳에 두고 다시 하세요."; return 1 ;;
+      esac
+      mkdir -p "$HOME/Library/LaunchAgents"
+      cat >"$PLIST" <<PEOF
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+  <key>Label</key><string>$LABEL</string>
+  <key>ProgramArguments</key><array><string>/bin/zsh</string><string>-lc</string><string>exec "$OFFICE_HOME/bin/office" serve</string></array>
+  <key>EnvironmentVariables</key><dict><key>OFFICE_HOME</key><string>$OFFICE_HOME</string><key>PATH</key><string>$HOME/.local/bin:$HOME/.pyenv/shims:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string></dict>
+  <key>RunAtLoad</key><true/>
+  <key>KeepAlive</key><true/>
+  <key>ThrottleInterval</key><integer>5</integer>
+  <key>StandardOutPath</key><string>$HOME/Library/Logs/pixaude-office.log</string>
+  <key>StandardErrorPath</key><string>$HOME/Library/Logs/pixaude-office.log</string>
+</dict></plist>
+PEOF
+      web_down; launchctl bootout "gui/$UID/$LABEL" 2>/dev/null || true
+      launchctl bootstrap "gui/$UID" "$PLIST" && print "  ✓ launchd 설치: $PLIST (로그인 시 자동 시작, 로그 ~/Library/Logs/pixaude-office.log)"
+      sleep 3; web_running && print "  ✓ 웹 서버: http://127.0.0.1:$PORT" || print "  ✗ 아직 안 떴습니다. 로그와 launchctl print gui/$UID/$LABEL 확인" ;;
+    uninstall)
+      launchctl bootout "gui/$UID/$LABEL" 2>/dev/null && print "  ✓ launchd 항목 내림" || print "  · 등록돼 있지 않음"
+      rm -f "$PLIST" ;;
+    *) print "usage: office service install|uninstall"; return 1 ;;
+  esac
+}
+cmd_app() {
+  (( IS_MAC )) || { print "  · macOS 전용"; return 1; }
+  local app="$HOME/Applications/Pixaude Office.app"; mkdir -p "$HOME/Applications"
+  osacompile -o "$app" -e "do shell script \"/bin/zsh -lc 'export PATH=\$HOME/.local/bin:/opt/homebrew/bin:/usr/local/bin:\$PATH; ${(q)OFFICE_HOME}/bin/office up' >> ${(q)OFFICE_HOME}/.launch.log 2>&1 &\"" \
+    && print "  ✓ $app (더블클릭 = office up)" || print "  ✗ osacompile 실패"
+}
+
+cmd_uninstall() {
+  print "Pixaude Office 제거"
+  cmd_statusline uninstall 2>/dev/null
+  (( IS_MAC )) && cmd_service uninstall 2>/dev/null
+  if [[ -x "$PY" && -f "$OFFICE_HOME/company.yaml" ]]; then load_cfg; cmd_down; fi
+  rm -rf "$OFFICE_HOME/.generated" "$OFFICE_HOME/.office-token" "$OFFICE_HOME/.web.pid"
+  print "  ✓ 생성물 삭제 (.generated, .office-token)"
+  print "  · 남긴 것: .venv, company.yaml, office.sqlite3, uploads/, 로그. 필요 없으면 폴더째 지우세요."
+  print "  · ~/.zshrc 의 alias 와 ~/Applications/Pixaude Office.app 은 직접 지우세요."
+}
+
+# ---------------- 일상 명령 ----------------
+print_results() {  # /api/up 응답을 한 줄씩
+  "$PY" -c '
+import json, sys
+try: d = json.load(sys.stdin)
+except Exception: print("  ✗ 서버 응답 없음 (office web 으로 웹 서버를 먼저 띄우세요)"); sys.exit(1)
+items = d.get("items", [])
+if not items: print("  · 출근시킬 팀이 없습니다 (active 팀 전원 이미 출근)")
+for it in items:
+    print(("  ✓ " + it.get("id", it["team"]) + " 출근") if it.get("ok") else ("  ✗ " + it["team"] + ": " + str(it.get("error", "실패"))))
+'
+}
+cmd_up() {
+  print "Pixaude Office 출근"
+  check_claude_version
+  web_up || return 1
+  local teams; teams="$("$PY" -c 'import json,sys; print(json.dumps({"teams": sys.argv[1:]}))' "$@")"
+  api_post /api/up/ "$teams" | print_results || return 1
+  cmd_open
+}
+cmd_down() {
+  print "Pixaude Office 퇴근"
+  if tmux has-session -t "$SESSION" 2>/dev/null; then
+    for w in $(tmux list-windows -t "$SESSION" -F '#W'); do tmux send-keys -t "$SESSION:$w" Escape; tmux send-keys -t "$SESSION:$w" -l "/exit"; tmux send-keys -t "$SESSION:$w" Enter; done
+    sleep 2; tmux kill-session -t "$SESSION" 2>/dev/null; print "  ✓ 세션 종료"
+  fi
+  web_down
+}
+cmd_status() {
+  web_running && print "웹: http://127.0.0.1:$PORT ($(launchd_managed && print launchd || print "pid $(cat "$PIDFILE" 2>/dev/null)"))" || print "웹: 꺼짐"
+  tmux has-session -t "$SESSION" 2>/dev/null || { print "tmux: 세션 없음"; return; }
+  tmux list-windows -t "$SESSION" -F '#W #{pane_dead}' | while read -r w dead; do
+    local last=""; last="$(tmux capture-pane -p -t "$SESSION:$w" 2>/dev/null | grep -v '^\s*$' | tail -1 | cut -c1-100)"
+    [[ "$dead" == "1" ]] && print "  ✗ $w (종료됨)" || print "  ● $w  │ $last"
+  done
+}
+cmd_attach() { [[ $# -ge 1 ]] || { print "usage: office attach <iid>"; return 1; }; tmux select-window -t "$SESSION:$1" && tmux attach -t "$SESSION"; }
+cmd_restart() {
+  [[ $# -ge 1 ]] || { print "usage: office restart <iid>"; return 1; }
+  web_running || { print "  ✗ 웹 서버가 꺼져 있습니다. office web 뒤에 다시 하세요"; return 1; }
+  api_post "/api/employees/$1/restart/" | "$PY" -c '
+import json, sys
+try: d = json.load(sys.stdin)
+except Exception: print("  ✗ 서버 응답 없음"); sys.exit(1)
+print(("  ↻ " + d.get("id", "") + " 재기동") if d.get("ok") else ("  ✗ " + str(d.get("error", "실패")) + "  (없는 직원이면: office up <팀id>)"))
+'
+}
+cmd_open() { open_url "http://127.0.0.1:$PORT/"; }
+
+case "${1:-}" in
+  setup) shift; cmd_setup "$@" ;;
+  doctor) cmd_doctor ;;
+  statusline) shift; cmd_statusline "$@" ;;
+  service) shift; cmd_service "$@" ;;
+  app) cmd_app ;;
+  uninstall) cmd_uninstall ;;
+  up) shift; load_cfg; cmd_up "$@" ;;
+  down) load_cfg; cmd_down ;;
+  status|st) load_cfg; cmd_status ;;
+  attach|a) shift; load_cfg; cmd_attach "$@" ;;
+  restart) shift; load_cfg; cmd_restart "$@" ;;
+  web) load_cfg; if launchd_managed; then launchctl kickstart -k "gui/$UID/$LABEL" && print "  ✓ 웹 서버 재시작 (launchd)"; else web_down; web_up; fi ;;
+  serve) load_cfg; cmd_serve ;;
+  open) load_cfg; cmd_open ;;
+  *) sed -n '2,17p' "$0" ;;
+esac
