@@ -1,6 +1,3 @@
-"""파비콘 생성: sprites.js 의 CAP(대표 교관모 도트 행)과 CAP_LEGEND 를 읽어 PNG(16·32·180)와 ICO 를 만든다. 표준 라이브러리만.
-    python3 .claude/skills/verify-ui/favicon.py
-"""
 import re
 import struct
 import zlib

@@ -1,8 +1,3 @@
-"""브라우저 웹소켓: 명령 테이블 + 5초 tick.
-
-state 의 함수는 전부 동기(tmux·DB·화면 캡처)라 sync_to_async 로 돌린다. thread_sensitive=False 가 중요하다:
-기본값(True)이면 모든 호출이 한 스레드에 줄을 서서, 화면 캡처 중에 훅 POST(3초 타임아웃)가 막혀 Stop 이 유실된다.
-"""
 import asyncio
 
 from asgiref.sync import sync_to_async

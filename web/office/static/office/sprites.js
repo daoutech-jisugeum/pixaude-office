@@ -1,6 +1,3 @@
-/* 픽셀 스프라이트 데이터 + 페인터. 규칙은 .claude/rules/pixel.md (Endesga 32 팔레트, 1px 색상이동 외곽선, 면당 3톤, 광원 왼쪽 위).
- * 그림은 문자열 행(row)으로 쓰고, legend 로 글자 → 팔레트 색을 잇는다. '.' 은 투명.
- * paint(g, rows, legend, x, y) 가 Phaser Graphics 에 fillRect 로 찍는다(같은 색 가로 연속은 한 번에). 동작 코드는 여기 없다. */
 (function () {
   const P = {   // Endesga 32 (lospec.com/palette-list/endesga-32)
     rust: 0xbe4a2f, orange: 0xd77643, cream: 0xead4aa, tan: 0xe4a672, brown: 0xb86f50, cocoa: 0x733e39, bark: 0x3e2731,

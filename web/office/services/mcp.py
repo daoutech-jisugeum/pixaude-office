@@ -1,10 +1,3 @@
-"""팀(작업실)별 MCP 서버: 보기 · 붙이기 · 떼기 · 복사 · 카탈로그 · 레지스트리 검색.
-
-설정 파일을 직접 쓰지 않고 `claude mcp add/remove` CLI 를 그 작업실에서 실행한다 → 터미널에서 한 것과 똑같이 기록된다.
-범위: local(~/.claude.json projects[cwd].mcpServers) · project(cwd/.mcp.json) · user(~/.claude.json mcpServers).
-claude.ai 커넥터·플러그인 MCP 는 CLI 로 못 다루므로 읽기 전용.
-변경은 다음 세션 시작부터 적용된다(떠 있는 직원은 재기동).
-"""
 import json
 import os
 import re

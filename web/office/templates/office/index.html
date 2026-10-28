@@ -16,7 +16,7 @@
 </head>
 <body>
 <header id="bar">
-  <div class="l"><b>Pixaude Office</b> <span id="period">{{ period }}</span> <span id="clock"></span> <span id="weather" title="서울 현재 날씨 (10분마다 갱신)"></span></div>
+  <div class="l"><img class="logo" src="{% static 'office/favicon-32.png' %}" alt="" width="16" height="16"><b class="brand">Pixaude Office</b> <span id="period">{{ period }}</span><span class="chip when"><span id="date"></span><span id="clock"></span></span> <span id="weather" class="chip" title="현재 날씨 (10분마다 갱신, 기본 성남시)"></span></div>
   <div class="c">
     <span title="출근한 세션 수 (tmux 창 = 직원)">출근 <b id="c-on">0</b></span>
     <span id="c-work-wrap" title="작업 중인 직원 (회의 포함)">작업 중 <b id="c-work">0</b></span>
@@ -43,11 +43,13 @@
 <main id="main">
   <div id="game"></div>
   <aside id="side">
+    <div id="side-mini" class="side-mini"></div>
     <section class="sec">
       <div class="sh"><b>출근 관리</b><span class="acts"><button id="tpl-new" class="mini2 go" title="팀(프로젝트) 추가 — company.yaml 에 저장. 직원은 팀 행의 + 로 출근">＋ 팀</button><button id="att-all-on" class="mini2">전체 출근</button><button id="att-all-off" class="mini2">전체 퇴근</button></span></div>
       <div id="att-list" class="att-list"></div>
     </section>
   </aside>
+  <button id="side-toggle" class="side-toggle" title="출근 관리 접기">◂</button>
 </main>
 
 <!-- 대화 모달 -->

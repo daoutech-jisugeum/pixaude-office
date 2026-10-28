@@ -1,4 +1,3 @@
-"""훅 설정 생성: 모든 이벤트가 서버 주소·토큰을 갖고, 상태줄 래퍼가 포트를 받는지."""
 from pathlib import Path
 
 from django.test import SimpleTestCase

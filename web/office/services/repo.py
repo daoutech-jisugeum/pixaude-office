@@ -1,4 +1,3 @@
-"""작업실(레포) 주변 정보: 현재 브랜치 · PR(gh) · LISTEN 포트(lsof). 전부 캐시가 있어 tick 마다 불러도 가볍다."""
 import json
 import shutil
 import subprocess

@@ -1,8 +1,3 @@
-"""화면 긁기 패턴 회귀 테스트. fixtures/*.txt 는 실제 tmux capture-pane 출력(login_required 만 합성).
-
-Claude Code 를 올린 뒤 이 테스트가 깨지면 services/screen.py 의 패턴을 새 화면에 맞춰 고치고,
-`tmux capture-pane -p -t office:<창> -S -40 > office/tests/fixtures/<이름>.txt` 로 fixture 를 갱신한다.
-"""
 from pathlib import Path
 
 from django.test import SimpleTestCase

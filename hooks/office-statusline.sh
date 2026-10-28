@@ -1,7 +1,4 @@
 #!/bin/bash
-# 상태줄 래퍼. Claude Code 가 stdin 으로 주는 상태 JSON(컨텍스트 %, 세션 비용, 구독 사용률)을 오피스 서버에 넘기고,
-# 원래 statusLine 명령(.generated/original-statusline.cmd)이 있으면 그대로 실행해 터미널 표시를 바꾸지 않는다.
-# 사용: office-statusline.sh [port]   (오피스 세션은 생성된 훅 설정이, 전역은 `office statusline install` 이 포트를 넣어 준다)
 input="$(cat)"
 here="$(cd "$(dirname "$0")" && pwd)"
 home="$(dirname "$here")"

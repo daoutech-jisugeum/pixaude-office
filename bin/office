@@ -1,20 +1,24 @@
 #!/bin/zsh
-# Pixaude Office 런처: 팀(레포)별 Claude Code 세션을 tmux(detached)로 한 번에 띄우고 오피스 웹을 연다.
-#   office setup             처음 한 번: 요구사항 확인, .venv 생성, company.yaml 준비, 토큰·훅 설정 생성
-#   office up                웹 서버를 백그라운드로 띄우고 전원 출근 + 브라우저. 터미널을 닫아도 유지. (tid 를 주면 그 팀 직원 추가 더
-#   office down              전원 퇴근 (/exit) + 웹 서버 종료
-#   office status            직원별 마지막 화면 한 줄
-#   office attach <iid>      그 직원 터미널로 들어가기 (예: my-api_1, Ctrl+b d 로 나옴)
-#   office restart <iid>     그 직원만 재기동 (자기 세션을 --resume)
-#   office web               웹 서버만 (재)기동
-#   office open              브라우저 열기
-#   office doctor            설치 상태 점검
-#   office statusline install|uninstall   전역 상태줄에 오피스 래퍼 끼우기/되돌리기 (구독 사용률·컨텍스트 표시용, 선택)
-#   office service install|uninstall      (macOS) launchd 로 웹 서버 상시 실행 (선택)
-#   office app               (macOS) ~/Applications 에 더블클릭용 'Pixaude Office.app' 만들기 (선택)
-#   office uninstall         상태줄·launchd 되돌리고 세션 종료, 생성물 삭제
-# 출근·재기동은 웹 서버의 API 를 부른다 (명령 조립·세션 이어가기·trust 수락은 web/office/state.py 한 곳).
 set -u
+cmd_help() {
+  cat <<'HELP'
+Pixaude Office 런처: 팀(레포)별 Claude Code 세션을 tmux(detached)로 한 번에 띄우고 오피스 웹을 연다.
+  office setup             처음 한 번: 요구사항 확인, .venv 생성, company.yaml 준비, 토큰·훅 설정 생성
+  office up                웹 서버를 백그라운드로 띄우고 전원 출근 + 브라우저. 터미널을 닫아도 유지. (tid 를 주면 그 팀 직원 추가 더
+  office down              전원 퇴근 (/exit) + 웹 서버 종료
+  office status            직원별 마지막 화면 한 줄
+  office attach <iid>      그 직원 터미널로 들어가기 (예: my-api_1, Ctrl+b d 로 나옴)
+  office restart <iid>     그 직원만 재기동 (자기 세션을 --resume)
+  office web               웹 서버만 (재)기동
+  office open              브라우저 열기
+  office doctor            설치 상태 점검
+  office statusline install|uninstall   전역 상태줄에 오피스 래퍼 끼우기/되돌리기 (구독 사용률·컨텍스트 표시용, 선택)
+  office service install|uninstall      (macOS) launchd 로 웹 서버 상시 실행 (선택)
+  office app               (macOS) ~/Applications 에 더블클릭용 'Pixaude Office.app' 만들기 (선택)
+  office uninstall         상태줄·launchd 되돌리고 세션 종료, 생성물 삭제
+출근·재기동은 웹 서버의 API 를 부른다 (명령 조립·세션 이어가기·trust 수락은 web/office/state.py 한 곳).
+HELP
+}
 OFFICE_HOME="${OFFICE_HOME:-${0:A:h:h}}"
 PY="${OFFICE_PY:-$OFFICE_HOME/.venv/bin/python}"
 PIDFILE="$OFFICE_HOME/.web.pid"
@@ -319,5 +323,5 @@ case "${1:-}" in
   web) load_cfg; if launchd_managed; then launchctl kickstart -k "gui/$UID/$LABEL" && print "  ✓ 웹 서버 재시작 (launchd)"; else web_down; web_up; fi ;;
   serve) load_cfg; cmd_serve ;;
   open) load_cfg; cmd_open ;;
-  *) sed -n '2,17p' "$0" ;;
+  *) cmd_help ;;
 esac

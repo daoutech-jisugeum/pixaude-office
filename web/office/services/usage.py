@@ -1,8 +1,3 @@
-"""토큰 사용량 집계 (트랜스크립트 jsonl 기반, 증분 파싱).
-
-- context_of(path): 세션의 현재 컨텍스트 크기 = 마지막 assistant 메시지의 input + cache_read + cache_creation
-- scan_all(): ~/.claude/projects 전체를 훑어 오늘/최근 5시간 토큰·비용 합계 (오피스 밖 세션 포함 = "전체 usage")
-"""
 import json
 import time
 from datetime import datetime

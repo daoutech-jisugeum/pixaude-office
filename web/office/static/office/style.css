@@ -202,8 +202,8 @@ textarea:focus { outline: 1px solid var(--accent); }
 textarea.dragover { outline: 2px dashed var(--accent); }
 
 /* 터미널 탭 (xterm.js) */
-.modal .box.wide { width: min(1100px, 96vw); height: calc(100vh - 20px); }   /* 세션 창은 기본으로 위아래를 거의 꽉 채운다. 모서리로 줄이면 기억됨 */
-#modal .box.wide { resize: both; min-width: 720px; min-height: 420px; max-width: calc(100vw - 16px); max-height: calc(100vh - 16px); }   /* 오른쪽 아래 모서리로 크기 조절. 최소는 지키고 최대는 크롬 창까지 */
+.modal .box.wide { width: max(720px, 50vw); height: calc(100vh - 56px); }   /* 세션 창 기본: 화면 너비의 절반(최소 720px), 위아래 28px 여백. 모서리·가장자리로 바꾸면 기억됨 */
+#modal .box.wide { resize: both; min-width: 720px; min-height: 420px; max-width: calc(100vw - 24px); max-height: calc(100vh - 24px); }   /* 오른쪽 아래 모서리로 크기 조절. 최소는 지키고 최대는 크롬 창까지 */
 .term { flex: 1 1 auto; min-height: 0; padding: 6px 6px 6px 10px; background: #0d1117; display: flex; gap: 6px; position: relative; }
 .term .pane { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; }
 .term .pane .xt { flex: 1 1 auto; min-height: 0; }
@@ -408,3 +408,31 @@ select:hover { border-color: var(--accent); } select:focus { outline: none; bord
 #modal .box .edge::after { content: ''; position: absolute; top: 50%; left: 4px; width: 2px; height: 36px; margin-top: -18px; border-radius: 1px; background: transparent; }
 #modal .box .edge:hover::after, #modal .box.edging .edge::after { background: var(--accent); }
 #modal .box.edging { user-select: none; } #modal .box.edging .term, #modal .box.edging .chat { pointer-events: none; }
+
+/* 왼쪽 패널 접기: 패널 오른쪽 경계에 세로 손잡이. 접으면 44px 레일에 팀 칩(출근 수 + 상태 점)만 남는다 */
+#main { position: relative; }
+.side-toggle { position: absolute; left: 340px; top: 50%; transform: translate(-50%, -50%); z-index: 3; width: 14px; height: 48px; padding: 0; border: 1px solid var(--line); border-radius: 7px; background: var(--surface); color: var(--muted); cursor: pointer; font-size: 10px; line-height: 1; }
+.side-toggle:hover { color: var(--fg); border-color: var(--accent); }
+.side-mini { display: none; flex-direction: column; gap: 6px; padding: 10px 6px; align-items: center; }
+.mchip { position: relative; width: 30px; height: 30px; border-radius: 7px; border: 1px solid var(--line); border-left: 3px solid var(--team, var(--line)); background: var(--bg); color: var(--muted); font-family: var(--mono); font-size: 12px; cursor: pointer; padding: 0; }
+.mchip.on { color: var(--fg); } .mchip:hover { border-color: var(--accent); }
+.mchip .md { position: absolute; top: -3px; right: -3px; width: 8px; height: 8px; border-radius: 50%; border: 1px solid var(--bg); }
+.mchip .md.needs_input { background: var(--signal); } .mchip .md.error { background: var(--danger); } .mchip .md.done { background: var(--ok); }
+body.side-collapsed #main { grid-template-columns: 44px 1fr; }
+body.side-collapsed #side { overflow: hidden auto; }
+body.side-collapsed #side .sec { display: none; }
+body.side-collapsed .side-mini { display: flex; }
+body.side-collapsed .side-toggle { left: 44px; }
+@media (max-width: 900px) { .side-toggle { display: none; } body.side-collapsed #main { grid-template-columns: 1fr; } body.side-collapsed .side-mini { display: none; } body.side-collapsed #side .sec { display: block; } }
+
+/* 시간대 글자(이른 아침·오전…)는 안 보임. 맵 조명 계산에만 쓰므로 요소는 남긴다 */
+#period { display: none; }
+
+/* 헤더 왼쪽: 로고 + 픽셀 폰트 상호 + 날짜·시간 칩 + 날씨 칩 */
+#bar .l { display: flex; align-items: center; gap: 10px; }
+#bar .l .logo { image-rendering: pixelated; margin-right: -4px; }
+#bar .l .brand { font-family: 'Galmuri11', var(--body); font-size: 15px; font-weight: 400; color: var(--fg); letter-spacing: 0; }
+#bar .chip { display: inline-flex; align-items: center; gap: 8px; background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 2px 9px; font-family: var(--mono); font-size: 12px; color: var(--fg); line-height: 1.5; }
+#bar .chip.when #date { color: var(--muted); }
+#bar #weather { gap: 5px; } #bar #weather i { font-style: normal; font-family: 'Apple Color Emoji', 'Segoe UI Emoji', 'Noto Color Emoji', sans-serif; font-size: 13px; line-height: 1; } #bar #weather span { font-family: var(--mono); }
+#bar #weather:empty { display: none; }

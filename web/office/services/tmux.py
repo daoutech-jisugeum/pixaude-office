@@ -1,4 +1,3 @@
-"""tmux 세션 'office' 제어. 직원 id = window 이름."""
 import os
 import shlex
 import subprocess
@@ -113,6 +112,8 @@ def new_window(emp_id: str, cwd: str, cmd: str, env: dict[str, str]) -> bool:
         r = _run("new-session", "-d", "-s", SESSION, "-n", emp_id, "-c", cwd, *_env_args(env), "-x", "200", "-y", "50", cmd)
         _run("set-environment", "-t", SESSION, "-u", "OFFICE_EMPLOYEE")
     _run("set-option", "-w", "-t", target(emp_id), "remain-on-exit", "on")   # /exit 해도 창이 남아야 respawn 할 수 있다
+    _run("set-option", "-w", "-t", target(emp_id), "window-size", "largest")   # 가장 큰 클라이언트 기준: 작은(또는 잔류한) 클라이언트가 창을 줄여 큰 화면에 점(·) 영역이 생기지 않게
+    _run("set-option", "-w", "-t", target(emp_id), "aggressive-resize", "on")
     return r.returncode == 0
 
 

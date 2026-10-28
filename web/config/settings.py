@@ -28,7 +28,7 @@ WEATHER_LON = float(_W.get("lon") or 127.1378)
 NOTIFY_MACOS = bool(_SERVER.get("notify_macos") or False)   # 질문·오류 때 macOS 알림(osascript). 브라우저 알림과 별개
 EDITOR_CMD = str(_SERVER.get("editor") or "")              # 「IDE 에서 열기」 명령 (code · cursor · idea). 비우면 PATH 에서 탐지
 # 화면 긁기 패턴·훅을 실제로 확인한 Claude Code 버전 범위. 밖이면 런처 doctor/up 과 상단바에 경고만 (동작은 막지 않음)
-CLAUDE_TESTED = ("2.1.299", "2.1.311")
+CLAUDE_TESTED = ("2.1.299", "2.1.312")
 
 OFFICE_TOKEN = load_token(OFFICE_HOME)          # 브라우저·훅·상태줄이 쓰는 설치별 비밀 (.office-token)
 SECRET_KEY = hashlib.sha256(("django:" + OFFICE_TOKEN).encode()).hexdigest()

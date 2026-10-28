@@ -1,9 +1,3 @@
-"""직원 상태 머신 (프로세스 메모리) + 이벤트 방송.
-
-- 템플릿: company.yaml 의 항목 (alias 와 1:1). 같은 템플릿으로 세션을 여러 개 띄울 수 있다.
-- 인스턴스: 실제로 떠 있는 세션. id = "<템플릿id>_<번호>" (= tmux 창 이름 = claude --name = 세션 간 메시지 주소)
-- 상태: away · starting · idle · working · needs_input · meeting · done · error
-"""
 import itertools
 import json
 import os

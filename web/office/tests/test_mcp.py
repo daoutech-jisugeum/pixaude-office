@@ -1,4 +1,3 @@
-"""MCP 서비스: `claude mcp list` 출력 파서와 카탈로그 치환."""
 from django.test import SimpleTestCase
 
 from office.services import mcp

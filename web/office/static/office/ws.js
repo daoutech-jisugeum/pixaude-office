@@ -1,4 +1,3 @@
-/* WebSocket 스토어 + 출근 관리/확인할 것 패널 + 모달. 맵은 game.js가 window.Office 이벤트를 구독한다. */
 (function () {
   const Office = window.Office = {
     employees: {}, templates: [], meetings: {}, listeners: {}, ws: null, near: null, unread: 0, usage: {}, rateLimits: {},
@@ -15,6 +14,8 @@
   const api = (u, o) => fetch(u, Object.assign({}, o, { headers: Object.assign({ 'X-Office-Token': window.OFFICE_TOKEN }, (o || {}).headers) })).then(r => r.json());   // /api/* 는 설치 토큰 필수
   const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
   const fmt = iso => { const d = iso ? new Date(iso) : new Date(); return d.toTimeString().slice(0, 5); };
+  const setWeather = label => { const m = /^(\S+)\s*(.*)$/.exec(label || ''); const w = $('#weather'); w.textContent = ''; if (!m) return; const i = el('i', null, m[1]); w.appendChild(i); if (m[2]) w.appendChild(el('span', null, m[2])); };   // 이모지와 글자를 따로 두어 글꼴 높낮이를 맞춘다
+  const dateStr = () => { const d = new Date(), p = n => String(n).padStart(2, '0'); return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}(${'일월화수목금토'[d.getDay()]})`; };   // 2026-10-28(수)
   const STATUS_KO = { away: '퇴근', starting: '출근 중', idle: '대기', working: '작업 중', needs_input: '입력 대기', meeting: '회의', done: '완료', error: '오류' };
   const statusKo = s => STATUS_KO[s] || s;
   const fmtTok = n => n == null ? '–' : n >= 1e6 ? (n / 1e6).toFixed(2) + 'M' : n >= 1e3 ? Math.round(n / 1e3) + 'k' : String(n);
@@ -28,7 +29,9 @@
   /* 모달 공통: 열 때 시각을 기록해 연 직후 400ms 의 배경 클릭은 무시 (pointerdown 으로 열리고 click 이 배경에 떨어지는 문제) */
   function makeModal(box, onClose) {
     const close = () => { if (box.hidden) return; box.hidden = true; if (onClose) onClose(); Office.emit('focus-input', false); };
-    box.addEventListener('click', e => { if (e.target === box && Date.now() - (+box.dataset.t || 0) > 400) close(); });
+    // 배경 클릭 닫기: 누르기 시작도 배경에서 했을 때만. 창 안(모서리·가장자리 크기 조절 포함)에서 누르고 밖에서 떼면 닫지 않는다
+    let downOnBg = false; box.addEventListener('pointerdown', e => { downOnBg = e.target === box; });
+    box.addEventListener('click', e => { if (e.target === box && downOnBg && Date.now() - (+box.dataset.t || 0) > 400) close(); downOnBg = false; });
     makeDraggable(box);
     return { open() { box.hidden = false; box.dataset.t = Date.now(); Office.emit('focus-input', true); }, close };
   }
@@ -36,8 +39,13 @@
   function makeDraggable(modal) {
     const box = modal.querySelector('.box'), head = modal.querySelector('.head'); if (!box || !head || box.dataset.drag) return; box.dataset.drag = '1';
     const key = 'office.pos.' + modal.id;
-    const apply = pos => { if (!pos) { box.style.transform = ''; box.classList.remove('moved'); return; } box.style.transform = `translate(${pos.x}px, ${pos.y}px)`; box.classList.add('moved'); };
+    // 옮긴 위치는 창 안에 머물도록 자른다 (가운데 정렬 기준이라 허용 범위는 ±(창-박스)/2, 가장자리에서 12px 띄움). 창이 커지거나 브라우저가 작아져도 밖으로 나가지 않게
+    const clamp = pos => { const w = box.offsetWidth, h = box.offsetHeight; if (!w || !h) return pos; const mx = Math.max(0, (window.innerWidth - w) / 2 - 12), my = Math.max(0, (window.innerHeight - h) / 2 - 12); return { x: Math.max(-mx, Math.min(mx, pos.x)), y: Math.max(-my, Math.min(my, pos.y)) }; };
+    const apply = pos => { if (!pos) { box.style.transform = ''; box.classList.remove('moved'); return; } pos = clamp(pos); box.style.transform = `translate(${pos.x}px, ${pos.y}px)`; box.classList.add('moved'); };
+    const current = () => { const m = /translate\((-?[\d.]+)px, (-?[\d.]+)px\)/.exec(box.style.transform); return m ? { x: +m[1], y: +m[2] } : null; };
+    const reclamp = () => { const c = current(); if (c) apply(c); };
     try { const saved = JSON.parse(localStorage.getItem(key) || 'null'); if (saved) apply(saved); } catch (e) {}
+    new ResizeObserver(reclamp).observe(box); window.addEventListener('resize', reclamp);
     let drag = null;
     head.addEventListener('pointerdown', e => {
       if (e.button !== 0 || e.target.closest('button, select, input, a, .tabs')) return;
@@ -52,11 +60,11 @@
   makeDraggable($('#modal'));   // 대화 모달은 makeModal 을 안 쓰므로 따로
   (function makeResizable(modal) {   // 대화 모달 크기 조절(CSS resize). 크기는 기억하고, 창보다 커지지 않게 자른다
     const box = modal.querySelector('.box'); if (!box) return;
-    const key = 'office.size.' + modal.id;
-    const clamp = (w, h) => [Math.min(w, window.innerWidth - 16), Math.min(h, window.innerHeight - 16)];
+    const key = 'office.size2.' + modal.id;   // 기본 크기를 키우면서 예전에 기억된 작은 크기는 버린다 (2026-10-28)
+    const clamp = (w, h) => [Math.min(w, window.innerWidth - 24), Math.min(h, window.innerHeight - 24)];
     const apply = sz => { if (!sz) { box.style.width = ''; box.style.height = ''; return; } const [w, h] = clamp(sz.w, sz.h); box.style.width = w + 'px'; box.style.height = h + 'px'; };
     try { apply(JSON.parse(localStorage.getItem(key) || 'null')); } catch (e) {}
-    let t; new ResizeObserver(() => { if (!box.style.width) return; clearTimeout(t); t = setTimeout(() => { try { localStorage.setItem(key, JSON.stringify({ w: box.offsetWidth, h: box.offsetHeight })); } catch (e) {} }, 200); }).observe(box);
+    let t; new ResizeObserver(() => { modal.dataset.t = Date.now(); if (!box.style.width) return; clearTimeout(t); t = setTimeout(() => { try { localStorage.setItem(key, JSON.stringify({ w: box.offsetWidth, h: box.offsetHeight })); } catch (e) {} }, 200); }).observe(box);
     window.addEventListener('resize', () => { if (box.style.width) apply({ w: box.offsetWidth, h: box.offsetHeight }); });
     modal.querySelector('.head').addEventListener('dblclick', e => { if (e.target.closest('button, select, input, a, .tabs')) return; apply(null); try { localStorage.removeItem(key); } catch (err) {} });   // 더블클릭 = 위치·크기 초기화
     // 양옆 가장자리를 끌어 너비만 조절 (모서리의 CSS resize 와 별개). 창은 가운데 정렬이라 한쪽을 dx 끌면 너비는 2dx 늘어 그 변이 커서를 따라온다
@@ -66,7 +74,7 @@
         e.preventDefault(); e.stopPropagation(); try { h.setPointerCapture(e.pointerId); } catch (err) {} box.classList.add('edging');
         const x0 = e.clientX, w0 = box.offsetWidth, h0 = box.offsetHeight;
         const move = ev => { const dx = (ev.clientX - x0) * (side === 'r' ? 2 : -2); apply({ w: Math.max(720, w0 + dx), h: h0 }); };
-        const up = () => { h.removeEventListener('pointermove', move); h.removeEventListener('pointerup', up); box.classList.remove('edging'); };
+        const up = () => { h.removeEventListener('pointermove', move); h.removeEventListener('pointerup', up); box.classList.remove('edging'); modal.dataset.t = Date.now(); };   // 손을 뗀 자리가 창 밖이어도 닫히지 않게
         h.addEventListener('pointermove', move); h.addEventListener('pointerup', up);
       });
     });
@@ -86,7 +94,7 @@
       Office.meetings = {}; (p.meetings || []).forEach(m => Office.meetings[m.id] = m.participants);
       Office.unread = p.unread || 0; Office.usage = p.usage || {}; Office.rateLimits = p.rate_limits || {}; Office.editor = p.editor || ''; Office.claudeTested = p.claude_tested || null; Office.pyenvs = p.pyenvs || [];
       $('#attached').textContent = p.attached ? `터미널 ${p.attached}명 attach` : '';
-      if (p.weather) $('#weather').textContent = p.weather; if (p.sky) Office.emit('sky', p.sky); renderAll(); Office.emit('snapshot', p);
+      if (p.weather) setWeather(p.weather); if (p.sky) Office.emit('sky', p.sky); renderAll(); Office.emit('snapshot', p);
     },
     'employee.status'(p) {
       const e = Office.employees[p.id]; if (!e) return;
@@ -109,7 +117,7 @@
     'meeting.end'(p) { delete Office.meetings[p.id]; renderAll(); Office.emit('meeting.end', p); },
     'pantry.visit'(p) { const e = Office.employees[p.id]; if (e) e.pantry = true; Office.emit('pantry.visit', p); },
     'pantry.done'(p) { const e = Office.employees[p.id]; if (e) e.pantry = false; Office.emit('pantry.done', p); },
-    tick(p) { $('#attached').textContent = p.attached ? `터미널 ${p.attached}명 attach` : ''; $('#clock').textContent = p.time; if (p.period) $('#period').textContent = p.period; if (p.weather) $('#weather').textContent = p.weather; if (p.sky) Office.emit('sky', p.sky); Office.emit('tick', p); },
+    tick(p) { $('#attached').textContent = p.attached ? `터미널 ${p.attached}명 attach` : ''; $('#clock').textContent = p.time; $('#date').textContent = dateStr(); if (p.period) $('#period').textContent = p.period; if (p.weather) setWeather(p.weather); if (p.sky) Office.emit('sky', p.sky); Office.emit('tick', p); },
     live(p) { const e = Office.employees[p.id]; if (e) { e.live = p.live || {}; if (p.ctx) e.ctx = p.ctx; else if (p.live && p.live.ctx_pct != null) e.ctx = { ctx: p.live.ctx_in, window: p.live.ctx_size, pct: p.live.ctx_pct, model: p.live.model }; e.session_cost = (p.live || {}).cost; ['effort', 'fast', 'worktree', 'version', 'lines', 'pr'].forEach(k => { if (p[k] != null) e[k] = p[k]; }); renderAttendance(); } if (p.rate_limits) Office.rateLimits = p.rate_limits; renderUsage(); refreshPlate(); Office.emit('usage', { employees: { [p.id]: { ctx: (Office.employees[p.id] || {}).ctx || {}, session: {} } } }); },
     usage(p) { if (p.rate_limits) Office.rateLimits = p.rate_limits; if (p.partial) { renderUsage(); return; } Office.usage = p.totals || {}; Object.entries(p.employees || {}).forEach(([id, u]) => { const e = Office.employees[id]; if (e) { e.ctx = u.ctx; e.session_out = u.session.out; e.session_cost = u.session.cost; if (u.model) e.model_actual = u.model; if (u.branch != null) e.branch = u.branch; if (u.pr) e.pr = u.pr; if (u.ports) e.ports = u.ports; if (u.last_note != null) e.last_note = u.last_note; } }); renderAttendance(); refreshModalHead(); renderUsage(); refreshPlate(); Office.emit('usage', p); },
     ack(p) {
@@ -213,6 +221,7 @@
   }
   function renderAttendance() {
     const list = $('#att-list'); list.innerHTML = '';
+    const mini = $('#side-mini'); mini.innerHTML = '';
     Office.templates.forEach(t => {
       const insts = Object.values(Office.employees).filter(e => e.template === t.id).sort((a, b) => a.no - b.no);
       // 팀 하나 = 카드 하나. 머리(이름·방·태그·버튼) 아래 직원 행이 붙는다
@@ -230,6 +239,11 @@
       const b = el('button', 'mini2 go ic', '+'); b.title = insts.length ? `직원 한 명 더 출근 (${t.id}_${insts.length + 1})` : `직원 출근 (${t.id}_1)`;
       b.addEventListener('click', ev => { ev.stopPropagation(); b.disabled = true; b.textContent = '…'; Office.send({ cmd: 'start', employee: t.id }); });
       acts2.appendChild(b); head.appendChild(acts2); card.appendChild(head); list.appendChild(card);
+      // 간소 레일(접힘): 팀 색 칩에 출근 수, 신경 쓸 상태가 있으면 점. 클릭하면 패널을 편다
+      const chip = el('button', 'mchip' + (insts.length ? ' on' : '')); chip.style.setProperty('--team', teamColor(t.id)); chip.textContent = insts.length || '·'; chip.title = `${t.name} · 출근 ${insts.length}`;
+      const hot = insts.find(e => e.status === 'needs_input' || e.status === 'error') || insts.find(e => e.status === 'done');
+      if (hot) { const dot = el('i', 'md ' + hot.status); chip.appendChild(dot); chip.title += hot.status === 'needs_input' ? ' · 질문' : hot.status === 'error' ? ' · 오류' : ' · 완료'; }
+      chip.addEventListener('click', () => $('#side-toggle').click()); mini.appendChild(chip);
       insts.forEach(e => {
         const present = Office.present(e.id);
         const row = el('div', 'att' + (present ? ' on' : '') + (e.status === 'starting' ? ' starting' : '')); row.style.setProperty('--team', teamColor(t.id)); row.title = `${e.id} · 클릭하면 대화`;
@@ -628,7 +642,7 @@
     };
     const ensure = () => {
       if (pane.term) return pane.term;
-      const t = pane.term = new Terminal({ fontFamily: '"IBM Plex Mono", Menlo, monospace', fontSize, lineHeight: 1.15, cursorBlink: true, scrollback: 5000, macOptionIsMeta: false,
+      const t = pane.term = new Terminal({ fontFamily: '"IBM Plex Mono", Menlo, monospace', fontSize, lineHeight: 1.15, cursorBlink: true, scrollback: 5000, macOptionIsMeta: true,   // iTerm2 의 "Option = Esc+" 와 같게: ⌥Enter 줄바꿈, ⌥←→ 단어 이동, ⌥⌫ 단어 삭제가 CLI 에 그대로 전달
         theme: { background: '#0d1117', foreground: '#dfe5ee', cursor: '#7ea4f2', selectionBackground: 'rgba(126,164,242,.35)' } });
       pane.fit = new FitAddon.FitAddon(); t.loadAddon(pane.fit);
       try { t.loadAddon(new WebLinksAddon.WebLinksAddon((ev, uri) => window.open(uri, '_blank'))); } catch (e) {}
@@ -637,7 +651,12 @@
       // GPU 렌더러: Claude Code 는 키 하나마다 화면 전체를 다시 그려 DOM 렌더러로는 글자가 밀린다. 실패하면(WebGL 미지원·컨텍스트 유실) 기본 렌더러로.
       try { const gl = new WebglAddon.WebglAddon(); gl.onContextLoss(() => gl.dispose()); t.loadAddon(gl); } catch (e) { console.warn('webgl addon off', e); }
       t.onData(send);
-      t.attachCustomKeyEventHandler(e => !(e.type === 'keydown' && isShortcut(e)));   // ⌘ 단축키는 문서 핸들러가 처리
+      // Shift+Enter = 줄바꿈: xterm 은 기본으로 Enter 와 같은 \r 을 보내므로, Claude Code 가 줄바꿈으로 읽는 ESC+CR(/terminal-setup 이 쓰는 시퀀스)을 대신 보낸다
+      t.attachCustomKeyEventHandler(e => {
+        if (e.type === 'keydown' && isShortcut(e)) return false;   // ⌘ 단축키는 문서 핸들러가 처리
+        if (e.key === 'Enter' && e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey) { if (e.type === 'keydown') send('\x1b\r'); return false; }
+        return true;
+      });
       t.textarea.addEventListener('keydown', e => e.stopPropagation());   // 문서 Esc 핸들러·Phaser 로 새지 않게
       t.textarea.addEventListener('keyup', e => e.stopPropagation());
       t.textarea.addEventListener('focus', () => { focusedPane = pane; });
@@ -677,6 +696,7 @@
   function openTerm(id) { mainPane.open(id); }
   function closeTerm() { mainPane.close(); closeSplit(); }
   function termResize() { mainPane.resize(); splitPane.resize(); }
+  window.addEventListener('focus', termResize);   // 탭으로 돌아오면 이 클라이언트 크기를 tmux 에 다시 알린다
   /* 분할 (⌘D): 오른쪽에 다른 직원 터미널. 드롭다운으로 직원 바꾸기, ✕ 또는 ⌘D 로 닫기 */
   function openSplit(id) {
     if (!id) { const ids = instOrder().filter(x => x !== mainPane.id); if (!ids.length) { toast('분할할 다른 직원이 없습니다'); return; } id = ids[(ids.indexOf(splitPane.id) + 1) % ids.length]; }
@@ -772,7 +792,9 @@
   const keysM = makeModal($('#keysbox')); $('#keys').addEventListener('click', keysM.open); $('#k-close').addEventListener('click', keysM.close);
   document.addEventListener('pointerdown', () => audio(), { once: true, capture: true });
   $('#m-close').addEventListener('click', closeModal);
-  modal.addEventListener('click', e => { if (e.target === modal && Date.now() - modalOpenedAt > 400) closeModal(); });
+  // 세션 창 배경 클릭 닫기: 누르기 시작도 배경이어야 한다 (창 안에서 크기 조절을 시작해 밖에서 떼면 닫지 않음)
+  let modalDownOnBg = false; modal.addEventListener('pointerdown', e => { modalDownOnBg = e.target === modal; });
+  modal.addEventListener('click', e => { if (e.target === modal && modalDownOnBg && Date.now() - modalOpenedAt > 400) closeModal(); modalDownOnBg = false; });
   bindInput($('#m-text'), () => modalFor);
   const bindSel = (sel, cmd, getId) => $(sel).addEventListener('change', e => { const v = e.target.value; if (v && v !== '__cur' && v !== e.target.dataset.key) Office.send({ cmd, employee: getId(), value: v }); });
   bindSel('#m-mode', 'permission_mode', () => modalFor); bindSel('#m-effort', 'effort', () => modalFor); bindSel('#m-model', 'model', () => modalFor);
@@ -859,6 +881,12 @@
   $('#b-close').addEventListener('click', boardM.close); $('#b-back').addEventListener('click', renderBoard);
   $('#b-prev').addEventListener('click', () => { bPage = Math.max(0, bPage - 1); renderBoard(); }); $('#b-next').addEventListener('click', () => { bPage += 1; renderBoard(); });
   $('#c-unread-wrap').addEventListener('click', Office.openBoard);
+  /* 왼쪽 패널 접기/펴기 (기억됨). 접으면 맵이 넓어지므로 Phaser 가 배율을 다시 맞추도록 resize 를 쏜다 */
+  const sideBtn = $('#side-toggle');
+  const applySide = collapsed => { document.body.classList.toggle('side-collapsed', collapsed); sideBtn.textContent = collapsed ? '▸' : '◂'; sideBtn.title = collapsed ? '출근 관리 펴기' : '출근 관리 접기'; setTimeout(() => window.dispatchEvent(new Event('resize')), 50); };
+  let sideCollapsed = false; try { sideCollapsed = localStorage.getItem('office.side') === '0'; } catch (e) {}
+  applySide(sideCollapsed);
+  sideBtn.addEventListener('click', () => { sideCollapsed = !sideCollapsed; try { localStorage.setItem('office.side', sideCollapsed ? '0' : '1'); } catch (e) {} applySide(sideCollapsed); });
   $('#c-ask-wrap').addEventListener('click', () => { const t = nextTodo(); if (t) openModal(t.id); });
 
   /* ---------- 알림 ---------- */
@@ -871,6 +899,6 @@
 
   function closeAll() { closeModal(); [plateM, boardM, usageM, sessM, tplM, guideM, keysM].forEach(m => m.close()); Office.emit('focus-input', false); }
   document.addEventListener('keydown', e => { if (e.key === 'Escape') closeAll(); });
-  $('#clock').textContent = fmt();
+  $('#clock').textContent = fmt(); $('#date').textContent = dateStr();
   connect();
 })();

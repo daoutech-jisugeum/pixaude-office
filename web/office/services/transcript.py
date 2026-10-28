@@ -1,4 +1,3 @@
-"""Claude Code 트랜스크립트(jsonl) 파서. 포맷이 바뀌면 이 파일만 고친다."""
 import json
 from pathlib import Path
 

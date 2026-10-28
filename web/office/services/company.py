@@ -1,4 +1,3 @@
-"""company.yaml 읽기/쓰기."""
 import os
 import re
 import subprocess

@@ -1,9 +1,3 @@
-"""팀(작업실)이 쓸 수 있는 스킬·명령·플러그인 목록 (읽기 전용).
-
-- 프로젝트: <cwd>/.claude/commands/*.md, <cwd>/.claude/skills/*/SKILL.md
-- 사용자:   ~/.claude/commands, ~/.claude/skills
-- 플러그인: ~/.claude/plugins/installed_plugins.json 에서 user 범위 + 이 레포(projectPath) 범위
-"""
 import json
 import os
 import re

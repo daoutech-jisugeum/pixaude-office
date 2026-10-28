@@ -1,9 +1,3 @@
-"""설치별 생성물: 토큰(.office-token)과 훅 설정(.generated/office-hooks.json).
-
-- 토큰: 브라우저·훅·상태줄이 서버에 붙을 때 쓰는 비밀. 없으면 만든다. (로컬 전용이지만 다른 웹사이트가 127.0.0.1 로 붙는 걸 막는다)
-- 훅 설정: `claude --settings` 로 세션에 주입. 이벤트마다 서버 /hook/<event>/ 로 POST 하고 상태줄은 래퍼 스크립트.
-  포트·경로·토큰이 바뀌면 다시 쓴다. 세션은 시작할 때 읽으므로 변경은 재기동 뒤 적용.
-"""
 import json
 import os
 import secrets

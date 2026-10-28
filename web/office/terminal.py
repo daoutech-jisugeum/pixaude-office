@@ -1,13 +1,3 @@
-"""브라우저 터미널: 직원의 tmux 창을 xterm.js 로 그대로 보여준다 (cmux 처럼).
-
-한 직원 = office 세션의 창 하나. 브라우저마다 pty 를 열고 그 안에서 `tmux attach` 한다.
-같은 office 세션에 바로 attach 하면 모든 클라이언트가 '현재 창'을 공유해 서로 창을 바꿔버리므로,
-접속마다 그룹 세션(new-session -t office -s view_xxxx)을 만들어 창은 공유하되 현재 창은 독립시킨다.
-`window-size latest` 가 전역에 켜져 있어 작은 브라우저가 iTerm 쪽 터미널을 줄이지 않는다.
-
-프로토콜: 브라우저→서버  binary = 키 입력 바이트,  text = JSON {"resize":[cols,rows]}
-         서버→브라우저  binary = pty 출력
-"""
 import asyncio
 import fcntl
 import json

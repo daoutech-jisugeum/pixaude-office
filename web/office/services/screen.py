@@ -1,16 +1,3 @@
-"""화면 긁기 패턴을 한 곳에 모은다.
-
-tmux `capture-pane` 로 받은 Claude Code 화면 텍스트만 입력으로 받는 순수 함수들이다.
-Claude Code 가 UI 문구를 바꾸면 여기만 고치면 되고, tests/fixtures/*.txt (실제 화면 캡처) 로
-`manage.py test office` 가 깨짐을 바로 알려준다.
-
-알려진 화면 (2026-10 기준):
-- 유휴:   `❯ ` 입력줄 + 상태줄. 직전 턴은 `✻ Worked for 10s · done 오전 11:23`.
-- 작업 중: `✳ Newspapering… (4s · ↓ 14 tokens)` 같은 스피너 줄(글리프는 ✻ ✳ ✶ ✽ ✢ · 등 회전),
-          도구 실행 중엔 `⎿  Running… (3s)`, 훅 실행 중엔 `(running PreToolUse hooks… 2/3 …)`.
-          입력줄 `❯` 은 작업 중에도 그대로 보인다 → 프롬프트 유무만으로 유휴를 판정하면 안 된다.
-- 예전 버전은 `esc to interrupt` 문구가 있었다. 호환을 위해 같이 본다.
-"""
 import re
 
 # 스피너 줄: 줄 머리에 기호 하나 + 공백 + 단어 + … (예: "✳ Newspapering… (4s · ↓ 14 tokens)")

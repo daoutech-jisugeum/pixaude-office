@@ -1,10 +1,4 @@
 #!/usr/bin/env python3
-"""헤드리스 Chrome CDP 헬퍼 (표준 라이브러리만).
-
-  cdp.py [JS식 또는 .js 파일] [--shot out.png] [--url URL] [--keep] [--errors]
-  --keep    이미 열린 오피스 탭을 다시 로드하지 않고 이어서 평가
-  --errors  페이지 로드 뒤 콘솔 에러/예외 목록 출력
-"""
 import base64
 import json
 import os

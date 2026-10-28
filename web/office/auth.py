@@ -1,4 +1,3 @@
-"""설치 토큰 검사. /api·/hook 뷰는 token_required, 웹소켓 컨슈머는 token_ok."""
 from functools import wraps
 from urllib.parse import parse_qs
 
