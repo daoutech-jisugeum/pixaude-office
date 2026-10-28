@@ -41,7 +41,8 @@ class ScreenPatternTests(SimpleTestCase):
         self.assertEqual(screen.read_mode("❯ \n  [Opus 4.1 high] │ x"), "")
 
     def test_login_detection(self):
-        for name in ("idle_plan_mode", "idle_booster", "busy_tool_running"):
+        # login_*: 실제 화면. 로그인 성공·중단 결과 줄, "login expires in 3 days" 배너는 로그인 요청이 아니다 (2026-10-28 오탐)
+        for name in ("idle_plan_mode", "idle_booster", "busy_tool_running", "login_successful", "login_interrupted", "login_expiry_banner"):
             with self.subTest(name):
                 self.assertIsNone(screen.detect_login(fx(name)), f"{name} 에서 로그인 오탐")
         info = screen.detect_login(fx("login_required"))

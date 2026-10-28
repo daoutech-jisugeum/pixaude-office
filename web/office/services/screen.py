@@ -6,7 +6,8 @@ BUSY_MARKERS = ("esc to interrupt", "running Stop hooks", "⎿  Running…", "to
 TURN_DONE_RE = re.compile(r"^\s*[^\w\s]\s+\S+ for \S+ · done\b")   # "✻ Worked for 10s · done 오전 11:23"
 PROMPT_PREFIX = "❯"
 
-LOGIN_RE = re.compile(r"(log ?in|로그인|not authenticated|authentication|oauth|/login|paste.*code|sign in)", re.I)
+LOGIN_RE = re.compile(r"(not authenticated|please (run )?/?log ?in|invalid api key|oauth token (has )?expired|token (has )?expired|authentication_error|paste code here|browser didn\'t open|select login method|log in to claude|sign in to)", re.I)
+LOGIN_IGNORE = ("expires in", "login successful", "login interrupted", "로그인 완료")   # 만료 예고 배너·결과 줄은 로그인 요청이 아니다
 URL_RE = re.compile(r"https://[^\s\"'<>]+")
 LOGIN_HOSTS = ("anthropic.com", "claude.ai", "claude.com")
 
@@ -43,14 +44,14 @@ def is_idle(text: str) -> bool:
 
 
 def detect_login(text: str) -> dict | None:
-    """로그인 안내가 떠 있으면 {'url', 'line'}; 평소 화면이면 None."""
+    """로그인 화면(인증 안 됨·코드 붙여넣기·로그인 방법 선택)이 떠 있으면 {'url', 'line'}; 평소 화면이면 None.
+    대화 내용의 '로그인' 단어, 만료 예고 배너, /login 결과 줄(성공·중단)은 로그인 요청으로 보지 않는다."""
     lines = [ln.strip() for ln in text.splitlines() if ln.strip()]
-    body = "\n".join(lines[-25:])
-    if PROMPT_PREFIX in body and not any(k in body.lower() for k in ("log in", "login", "sign in", "paste")):
-        return None
-    hit = [ln for ln in lines[-25:] if LOGIN_RE.search(ln) and "hooks" not in ln and "Context" not in ln]
+    tail = lines[-15:]
+    hit = [ln for ln in tail if LOGIN_RE.search(ln) and not any(k in ln.lower() for k in LOGIN_IGNORE)]
     if not hit:
         return None
+    body = "\n".join(tail)
     urls = [u for u in URL_RE.findall(body) if any(h in u for h in LOGIN_HOSTS)]
     return {"url": urls[-1] if urls else "", "line": hit[-1][:120]}
 

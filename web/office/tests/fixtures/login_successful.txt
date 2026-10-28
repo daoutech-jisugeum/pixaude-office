@@ -1,0 +1,62 @@
+ ▐▛███▛█   Claude Code v2.1.311
+▝▜██████▀  Fable 5.1 with medium effort · Claude Team
+ ▝▝   ▝▝   ~/Documents/사내시스템/01. 인사/daou_ehrs_web
+ ▐▛███▛█   Claude Code v2.1.311
+▝▜██████▀  Fable 5.1 with medium effort · Claude Team
+ ▐▛███▛█   Claude Code v2.1.311
+▝▜██████▀  Fable 5.1 with medium effort · Claude Team
+ ▐▛███▛█   Claude Code v2.1.311
+▝▜██████▀  Fable 5.1 with medium effort · Claude Team
+ ▐▛███▛█   Claude Code v2.1.311
+▝▜██████▀  Fable 5.1 with medium effort · Claude Team
+ ▝▝   ▝▝   ~/Documents/사내시스템/01. 인사/daou_ehrs_web
+
+
+ ▐▛███▛█   Claude Code v2.1.311
+▝▜██████▀  Fable 5.1 with medium effort · Claude Team
+ ▝▝   ▝▝   ~/Documents/사내시스템/01. 인사/daou_ehrs_web
+ ▐▛███▛█   Claude Code v2.1.311
+▝▜██████▀  Fable 5.1 with medium effort · Claude Team
+ ▝▝   ▝▝   ~/Documents/사내시스템/01. 인사/daou_ehrs_web
+ ▐▛███▛█   Claude Code v2.1.311
+▝▜██████▀  Fable 5.1 with medium effort · Claude Team
+ ▝▝   ▝▝   ~/Documents/사내시스템/01. 인사/daou_ehrs_web
+ ▐▛███▛█   Claude Code v2.1.311
+▝▜██████▀  Fable 5.1 with medium effort · Claude Team
+ ▐▛███▛█   Claude Code v2.1.311
+ ▐▛███▛█   Claude Code v2.1.312
+▝▜██████▀  Fable 5.1 with medium effort · Claude Team
+ ▝▝   ▝▝   ~/Documents/사내시스템/01. 인사/daou_ehrs_web
+
+
+❯ ㅇ
+
+❯ /login
+  ⎿  Login successful
+
+─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────── ehr_1 ─
+❯ 
+───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+  [Fable 5.1 medium] │ daou_ehrs_web +ehr_1 git:(master* ↓21 [+121 -112]) │ ☀ 11°C │ ⏱️  30h 5m
+  Context ░░░░░░░░░░ 0% (0/1.0M)
+  1 CLAUDE.md | 10 hooks
+  ~system.properties(+121 -112)  ?6
+  ⏵⏵ bypass permissions on (shift+tab to cycle)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

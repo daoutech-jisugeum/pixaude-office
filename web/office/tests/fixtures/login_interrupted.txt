@@ -1,0 +1,45 @@
+ ▐▛███▛█   Claude Code v2.1.310
+ ▐▛███▛█   Claude Code v2.1.311
+▝▜██████▀  Fable 5.1 with medium effort · Claude Team
+ ▝▝   ▝▝   ~/Documents/사내시스템/02. 채용/recruit_front
+
+
+ ▐▛███▛█   Claude Code v2.1.311
+▝▜██████▀  Fable 5.1 with medium effort · Claude Team
+ ▐▛███▛█   Claude Code v2.1.311
+ ▐▛███▛█   Claude Code v2.1.312
+▝▜██████▀  Fable 5.1 with medium effort · Claude Team
+ ▝▝   ▝▝   ~/Documents/사내시스템/02. 채용/recruit_front
+
+⚠ Your login expires in 3 days · run /login to renew
+
+❯ /login
+  ⎿  Login interrupted
+
+───────────────────────────────────────────────────────────────────────────────────────────────────────────── recruit-front_1 ─
+❯ 
+───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+  [Fable 5.1 medium] │ recruit_front +recruit-front_1 git:(master*) │ ☀ 11°C │ ⏱️  9h 5m
+  Context ░░░░░░░░░░ 0% (0/1.0M) │ Usage Weekly ████░░░░░░ 42% (resets in 4d 18h, at 11월 2일 09:00)
+  2 CLAUDE.md | 10 hooks
+  ?1
+  ⏵⏵ bypass permissions on (shift+tab to cycle)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

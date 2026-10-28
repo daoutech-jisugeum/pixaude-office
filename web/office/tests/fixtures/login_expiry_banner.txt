@@ -1,0 +1,77 @@
+ ▐▛███▛█   Claude Code v2.1.311
+▝▜██████▀  Fable 5.1 with medium effort · Claude Team
+ ▝▝   ▝▝   ~/Documents/사내시스템/01. 인사/daou_ehrs_web/.claude/worktrees/ehr_2
+
+ ▐▛███▛█   Claude Code v2.1.311
+▝▜██████▀  Fable 5.1 with medium effort · Claude Team
+ ▝▝   ▝▝   ~/Documents/사내시스템/01. 인사/daou_ehrs_web/.claude/worktrees/ehr_2
+
+ ▐▛███▛█   Claude Code v2.1.312
+▝▜██████▀  Fable 5.1 with medium effort · Claude Team
+ ▝▝   ▝▝   ~/Documents/사내시스템/01. 인사/daou_ehrs_web/.claude/worktrees/ehr_2
+
+ ▐▛███▛█   Claude Code v2.1.312
+▝▜██████▀  Fable 5.1 with medium effort · Claude Team
+ ▝▝   ▝▝   ~/Documents/사내시스템/01. 인사/daou_ehrs_web/.claude/worktrees/ehr_2
+ ▐▛███▛█   Claude Code v2.1.312
+ ▐▛███▛█   Claude Code v2.1.312
+▝▜██████▀  Fable 5.1 with medium effort · Claude Team
+ ▝▝   ▝▝   ~/Documents/사내시스템/01. 인사/daou_ehrs_web/.claude/worktrees/ehr_2
+
+
+ ▐▛███▛█   Claude Code v2.1.312
+▝▜██████▀  Fable 5.1 with medium effort · Claude Team
+ ▝▝   ▝▝   ~/Documents/사내시스템/01. 인사/daou_ehrs_web/.claude/worktrees/ehr_2
+
+
+ ▐▛███▛█   Claude Code v2.1.312
+▝▜██████▀  Fable 5.1 with medium effort · Claude Team
+ ▝▝   ▝▝   ~/Documents/사내시스템/01. 인사/daou_ehrs_web/.claude/worktrees/ehr_2
+
+
+ ▐▛███▛█   Claude Code v2.1.312
+ ▐▛███▛█   Claude Code v2.1.312
+▝▜██████▀  Fable 5.1 with medium effort · Claude Team
+ ▐▛███▛█   Claude Code v2.1.312
+ ▐▛███▛█   Claude Code v2.1.312
+▝▜██████▀  Fable 5.1 with medium effort · Claude Team
+ ▐▛███▛█   Claude Code v2.1.312
+▝▜██████▀  Fable 5.1 with medium effort · Claude Team
+ ▝▝   ▝▝   ~/Documents/사내시스템/01. 인사/daou_ehrs_web/.claude/worktrees/ehr_2
+
+⚠ Your login expires in 3 days · run /login to renew
+
+❯ /exit
+  ⎿  Catch you later!
+
+❯ 테스트
+
+⏺ 테스트 메시지 잘 받았습니다. 세션이 정상적으로 동작하고 있어요.
+
+  현재 상태는 worktree-ehr_2 브랜치, 작업 트리는 clean입니다. 작업하실 내용 말씀해 주시면 바로 진행하겠습니다.
+
+✻ Sautéed for 5s · done 오전 8:47
+
+──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────── ehr_2 ─
+❯ 
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+  [Fable 5.1 medium] │ ehr_2 +ehr_2 git:(worktree-ehr_2) │ ☀ 6°C │ ⏱️  25h 51m
+  Context ░░░░░░░░░░ 4% (45k/1.0M) │ Usage Weekly ████░░░░░░ 43% (resets in 4d 22h, at 11월 2일 09:00)
+  1 CLAUDE.md | 10 hooks
+  ⏵⏵ bypass permissions on (shift+tab to cycle)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
